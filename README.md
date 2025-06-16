@@ -13,6 +13,16 @@ A _grammar blob_ is an [Ohm][] grammar that has been compiled to .wasm via the `
 - The `miniohm` module is in matcher.go and cst.go.
 - An example can be found in cmd/example/main.go.
 
+## Compiling grammars to Wasm
+
+Use the `ohm2wasm` command from the `@ohm-js/wasm` NPM package to compile a .ohm file to a Wasm grammar blob. For example:
+
+```
+npx ohm2wasm myGrammar.ohm
+```
+
+See Makefile for an example.
+
 ## Matching input
 
 Create a new `WasmMatcher` and use the `Match` function:
