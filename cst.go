@@ -1,4 +1,4 @@
-package main
+package miniohm
 
 import (
 	"fmt"
@@ -142,19 +142,4 @@ func readUint32(data []byte, offset uint32) uint32 {
 
 func readInt32(data []byte, offset uint32) int32 {
 	return *(*int32)(unsafe.Pointer(&data[offset]))
-}
-
-// GetCstRoot returns the root node of the CST from the WasmMatcher
-func GetCstRoot(matcher *WasmMatcher, ruleNames []string) (*CstNode, error) {
-	rootAddr, err := matcher.GetCstRoot()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get CST root: %v", err)
-	}
-
-	memory := matcher.GetModule().Memory()
-	if memory == nil {
-		return nil, fmt.Errorf("WebAssembly module has no memory")
-	}
-
-	return NewCstNode(ruleNames, memory, rootAddr), nil
 }

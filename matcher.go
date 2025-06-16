@@ -1,4 +1,4 @@
-package main
+package miniohm
 
 import (
 	"context"
@@ -26,7 +26,6 @@ type WasmMatcher struct {
 	input            string
 	ctx              context.Context
 	ruleIds          map[string]int
-	defaultStartRule string
 	lastMatchResult  bool
 }
 
@@ -173,11 +172,6 @@ func (m *WasmMatcher) LoadModule(wasmPath string) error {
 		m.ruleIds[name] = i
 	}
 
-	// Set the default start rule to the first rule
-	if len(ruleNames) > 0 {
-		m.defaultStartRule = ruleNames[0]
-	}
-
 	return nil
 }
 
@@ -202,22 +196,16 @@ func (m *WasmMatcher) GetInput() string {
 	return m.input
 }
 
-func (m *WasmMatcher) Match() (bool, error) {
-	result, err := m.MatchRule(m.defaultStartRule)
-	if err == nil {
-		m.lastMatchResult = result
-	}
-	return result, err
-}
-
-func (m *WasmMatcher) MatchRule(ruleName string) (bool, error) {
+func (m *WasmMatcher) Match(ruleName ...string) (bool, error) {
 	// Get the rule ID
 	ruleId := uint64(0) // Default to 0 (start rule)
-	if ruleName != "" {
-		if id, ok := m.ruleIds[ruleName]; ok {
+
+	// If a rule name is provided, use it; otherwise use the default start rule
+	if len(ruleName) > 0 && ruleName[0] != "" {
+		if id, ok := m.ruleIds[ruleName[0]]; ok {
 			ruleId = uint64(id)
 		} else {
-			return false, fmt.Errorf("rule not found: %s", ruleName)
+			return false, fmt.Errorf("rule not found: %s", ruleName[0])
 		}
 	}
 
@@ -239,7 +227,7 @@ func (m *WasmMatcher) MatchRule(ruleName string) (bool, error) {
 }
 
 // GetCstRoot returns the root node address of the concrete syntax tree
-func (m *WasmMatcher) GetCstRoot() (uint32, error) {
+func (m *WasmMatcher) getCstRoot() (uint32, error) {
 	getCstRootFunc := m.module.ExportedFunction("getCstRoot")
 	if getCstRootFunc == nil {
 		return 0, fmt.Errorf("getCstRoot function not exported by module")
@@ -253,9 +241,9 @@ func (m *WasmMatcher) GetCstRoot() (uint32, error) {
 	return uint32(results[0]), nil
 }
 
-// GetCstNode returns a CstNode object for the current parse tree
-func (m *WasmMatcher) GetCstNode() (*CstNode, error) {
-	rootAddr, err := m.GetCstRoot()
+// GetCstRoot returns a CstNode object for the current parse tree
+func (m *WasmMatcher) GetCstRoot() (*CstNode, error) {
+	rootAddr, err := m.getCstRoot()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get CST root: %v", err)
 	}
@@ -265,11 +253,11 @@ func (m *WasmMatcher) GetCstNode() (*CstNode, error) {
 		return nil, fmt.Errorf("WebAssembly module has no memory")
 	}
 
-	return NewCstNode(m.GetRuleNames(), memory, rootAddr), nil
+	return NewCstNode(m.getRuleNames(), memory, rootAddr), nil
 }
 
 // GetRuleNames returns the list of rule names in the grammar
-func (m *WasmMatcher) GetRuleNames() []string {
+func (m *WasmMatcher) getRuleNames() []string {
 	// If we have real rule names, use them
 	if len(m.ruleIds) > 0 {
 		// Convert the rule IDs map to a slice of rule names
@@ -301,7 +289,7 @@ func (m *WasmMatcher) GetRuleNames() []string {
 }
 
 // fillInputBuffer is called by the WebAssembly module to get more input
-func (m *WasmMatcher) fillInputBuffer(ctx context.Context, mod api.Module, offset, maxLen uint32) uint32 {
+func (m *WasmMatcher) fillInputBuffer(_ctx context.Context, mod api.Module, offset, maxLen uint32) uint32 {
 	bytesToWrite := len(m.input)
 	if bytesToWrite > int(maxLen) {
 		bytesToWrite = int(maxLen)
@@ -329,17 +317,6 @@ func (m *WasmMatcher) fillInputBuffer(ctx context.Context, mod api.Module, offse
 	}
 
 	return uint32(bytesToWrite)
-}
-
-// GetRuleId returns the ID for a rule name
-func (m *WasmMatcher) GetRuleId(ruleName string) (int, bool) {
-	id, ok := m.ruleIds[ruleName]
-	return id, ok
-}
-
-// SetDefaultStartRule sets the default start rule for matching
-func (m *WasmMatcher) SetDefaultStartRule(ruleName string) {
-	m.defaultStartRule = ruleName
 }
 
 // Close releases all resources

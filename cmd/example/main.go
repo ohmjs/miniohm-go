@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+ "github.com/ohmjs/miniohm-go"
 )
 
 func main() {
@@ -15,7 +17,6 @@ func main() {
 	wasmFile := flag.String("wasm", "test/data/_add.wasm", "Path to WebAssembly file")
 	inputText := flag.String("input", "", "Input text to match against the grammar")
 	inputFile := flag.String("file", "", "Path to file containing input text to match")
-	startRule := flag.String("rule", "", "Start rule for the grammar (defaults to grammar's start rule)")
 	verbose := flag.Bool("verbose", false, "Display verbose information about CST nodes")
 	flag.Parse()
 
@@ -23,7 +24,7 @@ func main() {
 	ctx := context.Background()
 
 	// Create a new WasmMatcher
-	matcher := NewWasmMatcher(ctx)
+	matcher := miniohm.NewWasmMatcher(ctx)
 	defer matcher.Close()
 
 	// Load the WebAssembly module
@@ -52,12 +53,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	// If a start rule was specified, set it
-	if *startRule != "" {
-		fmt.Printf("Using rule: %s\n", *startRule)
-		matcher.SetDefaultStartRule(*startRule)
-	}
-
 	// Attempt to match the input
 	if *inputFile != "" {
 		fmt.Printf("Matching input file: %s\n", *inputFile)
@@ -74,21 +69,18 @@ func main() {
 		fmt.Println("Match succeeded")
 
 		// Try to get the CST root
-		cstRoot, err := matcher.GetCstRoot()
+		node, err := matcher.GetCstRoot()
 		if err != nil {
 			fmt.Printf("Error getting CST root: %v\n", err)
 		} else {
-			if *verbose {
-				fmt.Printf("CST root node ID: %d\n", cstRoot)
-			}
-
-			// Create a CST node from the root address
-			ruleNames := matcher.GetRuleNames()
-			node := NewCstNode(ruleNames, matcher.GetModule().Memory(), cstRoot)
-
 			nodeType := node.Type()
 			if *verbose {
 				fmt.Printf("CST Node - Type: %d\n", nodeType)
+				// Print the rule name if available
+				ruleName, err := node.RuleName()
+				if err == nil {
+					fmt.Printf("Rule Name: %s\n", ruleName)
+				}
 			}
 
 			// Unparse the CST to get the original text
@@ -100,14 +92,6 @@ func main() {
 				fmt.Printf("Unparsed text: %q\n", unparsedText)
 				fmt.Printf("Original input: %q\n", matcher.GetInput())
 			}
-
-			// Display verbose information about node types if requested
-			if *verbose {
-				fmt.Println("\nNode Types:")
-				fmt.Printf(" - Terminal nodes (type %d): Leaf nodes that consume input\n", NodeTypeTerminal)
-				fmt.Printf(" - Iteration nodes (type %d): Used for repetition operations\n", NodeTypeIter)
-				fmt.Printf(" - Non-terminal nodes (type %d): Internal nodes with children\n", NodeTypeNonterminal)
-			}
 		}
 	} else {
 		fmt.Println("Match failed")
@@ -117,7 +101,7 @@ func main() {
 
 // unparse walks the CST starting from the given node and reconstructs the original text
 // It returns the reconstructed text from the terminal nodes
-func unparse(node *CstNode, input string) string {
+func unparse(node *miniohm.CstNode, input string) string {
 	var result strings.Builder
 	pos := uint32(0)
 	unparseNode(node, &pos, input, &result)
@@ -125,7 +109,7 @@ func unparse(node *CstNode, input string) string {
 }
 
 // unparseNode is a helper function that recursively processes nodes and builds the result
-func unparseNode(node *CstNode, pos *uint32, input string, result *strings.Builder) {
+func unparseNode(node *miniohm.CstNode, pos *uint32, input string, result *strings.Builder) {
 	// Handle terminal nodes - append the consumed text to the result
 	if node.IsTerminal() {
 		matchLen, err := node.MatchLength()

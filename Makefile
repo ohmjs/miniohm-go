@@ -1,17 +1,17 @@
 all: build
 
 .PHONY: build
-build: build/testmain
+build: build/example
 
 .PHONY: test
-test: build/testmain testdata/arithmetic.wasm
-	build/testmain -wasm testdata/arithmetic.wasm -input "1+2*3-4/2"
+test: build/example testdata/arithmetic.wasm
+	build/example -wasm testdata/arithmetic.wasm -input "1+2*3-4/2" -verbose
 
 testdata/arithmetic.wasm: testdata/arithmetic.ohm
 	npx --package @ohm-js/wasm ohm2wasm testdata/arithmetic.ohm
 
-build/testmain: testmain.go matcher.go
-	go mod tidy && go build -o build/testmain
+build/example: cmd/example/main.go matcher.go cst.go
+	go mod tidy && go build -o build/example ./cmd/example
 
 .PHONY: tag
 tag:
