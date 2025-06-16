@@ -10,27 +10,24 @@ A _grammar blob_ is an [Ohm][] grammar that has been compiled to .wasm via the `
 
 ## Overview
 
-The implementation consists of two main components:
+- The `miniohm` module is in matcher.go and cst.go.
+- An example can be found in cmd/example/main.go.
 
-1. **matcher.go**: A Go implementation of the JavaScript `WasmMatcher` class from the Ohm `wasm` package
-2. **testmain.go**: A command-line program that demonstrates how to use the WasmMatcher
+## Matching input
 
-## WasmMatcher
-
-The `WasmMatcher` class provides a high-level API for working with Ohm grammar blobs:
+Create a new `WasmMatcher` and use the `Match` function:
 
 ```go
 matcher := NewWasmMatcher(ctx)
 err := matcher.LoadModule("path/to/grammar.wasm")
 matcher.SetInput("text to match")
 success, err := matcher.Match()
-success, err := matcher.MatchRule("specificRule")
 cstRoot, err := matcher.GetCstRoot()
 ```
 
 ## Walking the CST
 
-A full implementation of semantics, operations, etc. is not part of the miniohm interface. Instead, you can walk the CST (concrete syntax tree) directly using the CstNode interface. See testmain.go for an example.
+A full implementation of semantics, operations, etc. is not part of the miniohm interface. Instead, you can walk the CST (concrete syntax tree) directly using the CstNode interface. See cmd/example/main.go for an example.
 
 ## Developing
 
